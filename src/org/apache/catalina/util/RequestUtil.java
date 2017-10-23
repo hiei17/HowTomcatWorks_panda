@@ -274,24 +274,31 @@ public final class RequestUtil {
      * Parse a cookie header into an array of cookies according to RFC 2109.
      *
      * @param header Value of an HTTP "Cookie" header
-     */
-    public static Cookie[] parseCookieHeader(String header) {
+     *///TODO
+    public static Cookie[] parseCookieHeader(String header) {  // userName=budi; password=pwd;
 
         if ((header == null) || (header.length() < 1))
             return (new Cookie[0]);
 
         ArrayList cookies = new ArrayList();
+
         while (header.length() > 0) {
+            //每对';'分隔
             int semicolon = header.indexOf(';');
-            if (semicolon < 0)
+            if (semicolon < 0)//只有一对
                 semicolon = header.length();
-            if (semicolon == 0)
+            if (semicolon == 0)//都解析光了 结束了
                 break;
+
+            //一个k-v 如 'userName=budi'
             String token = header.substring(0, semicolon);
+
+            //原head截掉本token
             if (semicolon < header.length())
                 header = header.substring(semicolon + 1);
             else
                 header = "";
+
             try {
                 int equals = token.indexOf('=');
                 if (equals > 0) {
@@ -300,10 +307,11 @@ public final class RequestUtil {
                     cookies.add(new Cookie(name, value));
                 }
             } catch (Throwable e) {
-                ;
+                ;//不是xx=xxx 的格式也算了
             }
         }
 
+        //ArrayList转数组返回
         return ((Cookie[]) cookies.toArray(new Cookie[cookies.size()]));
 
     }

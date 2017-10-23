@@ -95,7 +95,7 @@ public class HttpRequest implements HttpServletRequest {
    * Therefore, application level access to the parameters need not be
    * synchronized.
    */
-  protected ParameterMap parameters = null;
+  protected  ParameterMap parameters = null;
 
   /**
    * Have the parameters for this request been parsed yet?
@@ -117,7 +117,7 @@ public class HttpRequest implements HttpServletRequest {
   public HttpRequest(InputStream input) {
     this.input = input;
   }
-
+  //让HttpProcessor 解析时加
   public void addHeader(String name, String value) {
     name = name.toLowerCase();
     synchronized (headers) {
@@ -134,14 +134,21 @@ public class HttpRequest implements HttpServletRequest {
    * Parse the parameters of this request, if it has not already occurred.
    * If parameters are present in both the query string and the request
    * content, they are merged.
-   */
+   *///TODO parseParameters
   protected void parseParameters() {
+    //已经解析过了
     if (parsed)
       return;
+
+    //为了防止下面加工过程出现异常
     ParameterMap results = parameters;
     if (results == null)
-      results = new ParameterMap();
+      // The name/value pairs can only be added, updated or removed if locked is false.
+      parameters = new ParameterMap();
+
+    //设为可修改
     results.setLocked(false);
+
     String encoding = getCharacterEncoding();
     if (encoding == null)
       encoding = "ISO-8859-1";
@@ -156,6 +163,7 @@ public class HttpRequest implements HttpServletRequest {
     }
 
     // Parse any parameters specified in the input stream
+    // the HTTP request body
     String contentType = getContentType();
     if (contentType == null)
       contentType = "";
@@ -166,10 +174,13 @@ public class HttpRequest implements HttpServletRequest {
     else {
       contentType = contentType.trim();
     }
-    if ("POST".equals(getMethod()) && (getContentLength() > 0)
-      && "application/x-www-form-urlencoded".equals(contentType)) {
+
+    // If the user requested the servlet using the GET method, all parameters are on the query string.
+   // If the POST method is used, you may find some in the request body too.
+    if ("POST".equals(getMethod()) && (getContentLength() > 0) && "application/x-www-form-urlencoded".equals(contentType)) {
+
       try {
-        int max = getContentLength();
+        int max = getContentLength();//head里面写的 之前解析的时候set的
         int len = 0;
         byte buf[] = new byte[getContentLength()];
         ServletInputStream is = getInputStream();
@@ -184,6 +195,7 @@ public class HttpRequest implements HttpServletRequest {
         if (len < max) {
           throw new RuntimeException("Content length mismatch");
         }
+        //buf按encoding编码 入results
         RequestUtil.parseParameters(results, buf, encoding);
       }
       catch (UnsupportedEncodingException ue) {
@@ -200,6 +212,7 @@ public class HttpRequest implements HttpServletRequest {
     parameters = results;
   }
 
+  //让HttpProcessor 解析时加
   public void addCookie(Cookie cookie) {
     synchronized (cookies) {
       cookies.add(cookie);

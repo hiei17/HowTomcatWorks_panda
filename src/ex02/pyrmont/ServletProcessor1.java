@@ -17,7 +17,7 @@ public class ServletProcessor1 {
       String uri = request.getUri();
       String servletName = uri.substring(uri.lastIndexOf("/") + 1);
       assert loader != null;
-      Class<?> myClass = loader.loadClass(servletName);
+      Class myClass = loader.loadClass(servletName);
 
       Servlet servlet = (Servlet) myClass.newInstance();
       servlet.service(request, response);

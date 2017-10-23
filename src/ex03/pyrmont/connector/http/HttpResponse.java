@@ -467,12 +467,15 @@ public class HttpResponse implements HttpServletResponse {
     return null;
   }
 
+ //servlet会通过他得到输出流
+  //ResponseWriter 包OutputStreamWriter 包ResponseStream
   public PrintWriter getWriter() throws IOException {
+    //derived from the java.io.OutputStream
     ResponseStream newStream = new ResponseStream(this);
     newStream.setCommit(false);
-    OutputStreamWriter osr =
-      new OutputStreamWriter(newStream, getCharacterEncoding());
-    writer = new ResponseWriter(osr);
+    OutputStreamWriter osr = new OutputStreamWriter(newStream, getCharacterEncoding());
+    //继承PrintWriter 每个方法加上自动刷新
+    writer = new ResponseWriter(osr);//里面调用的ResponseStream
     return writer;
   }
 

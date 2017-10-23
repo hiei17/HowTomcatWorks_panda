@@ -58,125 +58,125 @@ public class Request implements ServletRequest {//实现这个 才能传给servl
 
   //下面暂时还是空方法
   /* implementation of the ServletRequest*/
-  @Override
+
   public Object getAttribute(String attribute) {
     return null;
   }
 
-  @Override
+
   public Enumeration getAttributeNames() {
     return null;
   }
 
-  @Override
+
   public String getRealPath(String path) {
     return null;
   }
 
-  @Override
+
   public RequestDispatcher getRequestDispatcher(String path) {
     return null;
   }
 
-  @Override
+
   public boolean isSecure() {
     return false;
   }
 
-  @Override
+
   public String getCharacterEncoding() {
     return null;
   }
 
-  @Override
+
   public int getContentLength() {
     return 0;
   }
 
-  @Override
+
   public String getContentType() {
     return null;
   }
 
-  @Override
+
   public ServletInputStream getInputStream() throws IOException {
     return null;
   }
 
-  @Override
+
   public Locale getLocale() {
     return null;
   }
 
-  @Override
+
   public Enumeration getLocales() {
     return null;
   }
 
-  @Override
+
   public String getParameter(String name) {
     return null;
   }
 
-  @Override
+
   public Map getParameterMap() {
     return null;
   }
 
-  @Override
+
   public Enumeration getParameterNames() {
     return null;
   }
 
-  @Override
+
   public String[] getParameterValues(String parameter) {
     return null;
   }
 
-  @Override
+
   public String getProtocol() {
     return null;
   }
 
-  @Override
+
   public BufferedReader getReader() throws IOException {
     return null;
   }
 
-  @Override
+
   public String getRemoteAddr() {
     return null;
   }
 
-  @Override
+
   public String getRemoteHost() {
     return null;
   }
 
-  @Override
+
   public String getScheme() {
    return null;
   }
 
-  @Override
+
   public String getServerName() {
     return null;
   }
 
-  @Override
+
   public int getServerPort() {
     return 0;
   }
 
-  @Override
+
   public void removeAttribute(String attribute) {
   }
 
-  @Override
+
   public void setAttribute(String key, Object value) {
   }
 
-  @Override
+
   public void setCharacterEncoding(String encoding)
     throws UnsupportedEncodingException {
   }

@@ -57,7 +57,7 @@ public class Response implements ServletResponse {//必须实现这个接口
 
 
   //接口要求实现的
-  @Override
+
   public PrintWriter getWriter() throws IOException {
     //TODO  autoflush is true, println() will flush,
     // but print() will not.

@@ -47,6 +47,7 @@ public class ServletProcessor {
       HttpRequestFacade requestFacade = new HttpRequestFacade(request);
       HttpResponseFacade responseFacade = new HttpResponseFacade(response);
       servlet.service(requestFacade, responseFacade);
+      //TODO 刷新并关闭流
       ((HttpResponse) response).finishResponse();
     }
     catch (Exception e) {

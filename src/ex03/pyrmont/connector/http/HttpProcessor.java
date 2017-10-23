@@ -31,14 +31,14 @@ public class HttpProcessor {
 
   /**
    * The string manager for this package.
-   */
-  protected StringManager sm =
-    StringManager.getManager("ex03.pyrmont.connector.http");
+   *///TODO
+  protected StringManager sm = StringManager.getManager("ex03.pyrmont.connector.http");
 
   public void process(Socket socket) {
     SocketInputStream input = null;
     OutputStream output = null;
     try {
+      //TODO InputStream的子类 更方便  有readRequestLine and readHeader
       input = new SocketInputStream(socket.getInputStream(), 2048);
       output = socket.getOutputStream();
 
@@ -48,12 +48,14 @@ public class HttpProcessor {
       // create HttpResponse object
       response = new HttpResponse(output);
       response.setRequest(request);
+      response.setRequest(request);
 
       response.setHeader("Server", "Pyrmont Servlet Container");
 
-      // are called to help populate the HttpRequest
-      parseRequest(input, output);
-      parseHeaders(input);
+      //TODO  are called to help populate the HttpRequest
+      parseRequest(input, output);//第一行
+      parseHeaders(input);//headers
+     // HTTP request body 开始不解析 用到才去解析
 
       //check if this is a request for a servlet or a static resource
       //a request for a servlet begins with "/servlet/"
@@ -85,43 +87,54 @@ public class HttpProcessor {
    * @exception IOException if an input/output error occurs
    * @exception ServletException if a parsing error occurs
    */
-  private void parseHeaders(SocketInputStream input)
-    throws IOException, ServletException {
-    while (true) {
+  private void parseHeaders(SocketInputStream input) throws IOException, ServletException {
+
+    while (true) {// until there is no more header.
       HttpHeader header = new HttpHeader();;
 
       // Read the next header
       input.readHeader(header);
+      //If there is no more header to read, both nameEnd and valueEnd fields of the HttpHeader instance will be zero.
       if (header.nameEnd == 0) {
         if (header.valueEnd == 0) {
           return;
         }
-        else {
-          throw new ServletException
-            (sm.getString("httpProcessor.parseHeaders.colon"));
-        }
+        //不成对
+        throw new ServletException(sm.getString("httpProcessor.parseHeaders.colon"));
       }
 
+      //加一对
       String name = new String(header.name, 0, header.nameEnd);
       String value = new String(header.value, 0, header.valueEnd);
       request.addHeader(name, value);
+
       // do something for some headers, ignore others.
-      if (name.equals("cookie")) {
+
+      //Cookie: userName=budi; password=pwd;
+      if ("cookie".equals(name)) {
+        //the value is the cookie name/value pair(s).
         Cookie cookies[] = RequestUtil.parseCookieHeader(value);
-        for (int i = 0; i < cookies.length; i++) {
-          if (cookies[i].getName().equals("jsessionid")) {
-            // Override anything requested in the URL
-            if (!request.isRequestedSessionIdFromCookie()) {
-              // Accept only the first session id cookie
-              request.setRequestedSessionId(cookies[i].getValue());
-              request.setRequestedSessionCookie(true);
-              request.setRequestedSessionURL(false);
-            }
-          }
+
+        for (int i=0;i<cookies.length;i++) {
           request.addCookie(cookies[i]);
+
+          //只有jsessionid要特殊处理
+          if (!"jsessionid".equals( cookies[i].getName()))
+            continue;
+
+          // head里面设的 比url里面设的 优先级高  url已经设了就覆盖它
+          if (!request.isRequestedSessionIdFromCookie()) {
+            // Accept only the first session id cookie
+            request.setRequestedSessionId( cookies[i].getValue());
+            request.setRequestedSessionCookie(true);
+            request.setRequestedSessionURL(false);
+          }
+
         }
+        continue;
       }
-      else if (name.equals("content-length")) {
+
+     if ("content-length".equals(name)) {
         int n = -1;
         try {
           n = Integer.parseInt(value);
@@ -130,23 +143,25 @@ public class HttpProcessor {
           throw new ServletException(sm.getString("httpProcessor.parseHeaders.contentLength"));
         }
         request.setContentLength(n);
+        continue;
       }
-      else if (name.equals("content-type")) {
+
+     if ("content-type".equals(name)) {
         request.setContentType(value);
       }
     } //end while
   }
 
 
+  //就是为了填request
   private void parseRequest(SocketInputStream input, OutputStream output)
     throws IOException, ServletException {
 
     // Parse the incoming request line
-    input.readRequestLine(requestLine);
-    String method =
-      new String(requestLine.method, 0, requestLine.methodEnd);
+    input.readRequestLine(requestLine);//requestLine里面放入如 GET /myApp/ModernServlet?userName=tarzan&password=pwd HTTP/1.1
+    String method = new String(requestLine.method, 0, requestLine.methodEnd);//GET
     String uri = null;
-    String protocol = new String(requestLine.protocol, 0, requestLine.protocolEnd);
+    String protocol = new String(requestLine.protocol, 0, requestLine.protocolEnd);//HTTP/1.1
 
     // Validate the incoming request line
     if (method.length() < 1) {
@@ -155,11 +170,12 @@ public class HttpProcessor {
     else if (requestLine.uriEnd < 1) {
       throw new ServletException("Missing HTTP request URI");
     }
-    // Parse any query parameters out of the request URI
+
+    //TODO  Parse any query parameters out of the request URI
     int question = requestLine.indexOf("?");
     if (question >= 0) {
-      request.setQueryString(new String(requestLine.uri, question + 1,
-        requestLine.uriEnd - question - 1));
+      //只存 不解析 用到才解析 省点
+      request.setQueryString(new String(requestLine.uri, question + 1, requestLine.uriEnd - question - 1));
       uri = new String(requestLine.uri, 0, question);
     }
     else {
@@ -169,6 +185,7 @@ public class HttpProcessor {
 
 
     // Checking for an absolute URI (with the HTTP protocol)
+    //可能是绝对路径 如 http://www.brainysoftware.com/index.html?name=Tarzan
     if (!uri.startsWith("/")) {
       int pos = uri.indexOf("://");
       // Parsing out protocol and host name
@@ -183,6 +200,7 @@ public class HttpProcessor {
       }
     }
 
+    // may  contain a session identifier
     // Parse any requested session ID out of the request URI
     String match = ";jsessionid=";
     int semicolon = uri.indexOf(match);
@@ -197,30 +215,32 @@ public class HttpProcessor {
         request.setRequestedSessionId(rest);
         rest = "";
       }
+      // means that the session identifier is carried in the query string, and not in a cookie.
       request.setRequestedSessionURL(true);
+      //been stripped off the jsessionid.
       uri = uri.substring(0, semicolon) + rest;
     }
-    else {
+    else {//session identifier is carried  in a cookie.
       request.setRequestedSessionId(null);
       request.setRequestedSessionURL(false);
     }
 
     // Normalize URI (using String operations at the moment)
+    //If uri is in good format or if the abnormality can be corrected, normalize returns the same URI or the corrected one.
     String normalizedUri = normalize(uri);
 
     // Set the corresponding request properties
-    ((HttpRequest) request).setMethod(method);
+    request.setMethod(method);
     request.setProtocol(protocol);
     if (normalizedUri != null) {
-      ((HttpRequest) request).setRequestURI(normalizedUri);
+     request.setRequestURI(normalizedUri);
     }
     else {
-      ((HttpRequest) request).setRequestURI(uri);
-    }
-
-    if (normalizedUri == null) {
+      request.setRequestURI(uri);
       throw new ServletException("Invalid URI: " + uri + "'");
     }
+
+
   }
 
   /**
@@ -235,6 +255,7 @@ public class HttpProcessor {
   protected String normalize(String path) {
     if (path == null)
       return null;
+
     // Create a place for the normalized path
     String normalized = path;
 
