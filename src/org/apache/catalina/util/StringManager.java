@@ -90,7 +90,7 @@ public class StringManager {
     /**
      * The ResourceBundle for this StringManager.
      */
-
+//里面是一个配置文件 很多k-v对  bundle.get(k) 来k给v
     private ResourceBundle bundle;
 
     /**
@@ -112,7 +112,7 @@ public class StringManager {
      *
      * @param key
      */
-
+//TODO  给包名 返回配置文件里面配置的错误文字描述
     public String getString(String key) {
         if (key == null) {
             String msg = "key is null";
@@ -245,11 +245,11 @@ public class StringManager {
      *
      * @param packageName
      */
-
+//TODO 有的话直接拿出来  没有先new 再存一引用
     public synchronized static StringManager getManager(String packageName) {
         StringManager mgr = (StringManager)managers.get(packageName);
         if (mgr == null) {
-            mgr = new StringManager(packageName);
+            mgr = new StringManager(packageName);//每个都管理着一个配置文件 配置文件里面是  异常-异常描述
             managers.put(packageName, mgr);
         }
         return mgr;

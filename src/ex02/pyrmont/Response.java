@@ -20,6 +20,7 @@ public class Response implements ServletResponse {//必须实现这个接口
     this.request = request;
   }
 
+  //把请求的文件给输出流 找不到文件就404
   /* This method is used to serve a static page */
   public void sendStaticResource() throws IOException {
     byte[] bytes = new byte[BUFFER_SIZE];

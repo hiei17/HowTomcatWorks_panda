@@ -25,6 +25,7 @@ public class Request implements ServletRequest {//实现这个 才能传给servl
     return uri;
   }
 
+  //2个空格之间是url
   private String parseUri(String requestString) {
     int index1, index2;
     index1 = requestString.indexOf(' ');
@@ -37,9 +38,11 @@ public class Request implements ServletRequest {//实现这个 才能传给servl
     return null;
   }
 
+  //从输入流里面拿出url
   public void parse() {
     // Read a set of characters from the socket
     StringBuffer request = new StringBuffer(2048);
+    //输入流转字符串request
     int i;
     byte[] buffer = new byte[2048];
     try {
@@ -53,6 +56,7 @@ public class Request implements ServletRequest {//实现这个 才能传给servl
       request.append((char) buffer[j]);
     }
     System.out.print(request.toString());
+
     uri = parseUri(request.toString());
   }
 

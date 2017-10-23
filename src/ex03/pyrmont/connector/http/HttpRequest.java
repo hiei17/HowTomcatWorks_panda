@@ -6,30 +6,22 @@ package ex03.pyrmont.connector.http;
  *  These two classes will be explained in Chapter 4.
  */
 import ex03.pyrmont.connector.RequestStream;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpSession;
-import javax.servlet.http.Cookie;
-import javax.servlet.RequestDispatcher;
-import javax.servlet.ServletInputStream;
-import java.security.Principal;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.io.IOException;
-import java.io.BufferedReader;
-import java.io.UnsupportedEncodingException;
-import java.net.InetAddress;
-import java.net.Socket;
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.Enumeration;
-import java.util.HashMap;
-import java.util.Locale;
-import java.util.Map;
 import org.apache.catalina.util.Enumerator;
 import org.apache.catalina.util.ParameterMap;
 import org.apache.catalina.util.RequestUtil;
+
+import javax.servlet.RequestDispatcher;
+import javax.servlet.ServletInputStream;
+import javax.servlet.http.Cookie;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpSession;
+import java.io.*;
+import java.net.InetAddress;
+import java.net.Socket;
+import java.security.Principal;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.*;
 
 public class HttpRequest implements HttpServletRequest {
 
@@ -64,6 +56,20 @@ public class HttpRequest implements HttpServletRequest {
    * The set of cookies associated with this Request.
    */
   protected ArrayList cookies = new ArrayList();
+    //让HttpProcessor 解析时加
+    public void addCookie(Cookie cookie) {
+        synchronized (cookies) {
+            cookies.add(cookie);
+        }
+    }
+    public Cookie[] getCookies() {
+        synchronized (cookies) {
+            if (cookies.size() < 1)
+                return (null);
+            Cookie results[] = new Cookie[cookies.size()];
+            return ((Cookie[]) cookies.toArray(results));
+        }
+    }
   /**
    * An empty collection to use for returning empty Enumerations.  Do not
    * add any elements to this collection!
@@ -83,6 +89,54 @@ public class HttpRequest implements HttpServletRequest {
    * values are ArrayLists of the corresponding header values.
    */
   protected HashMap headers = new HashMap();
+    //让HttpProcessor 解析时加
+    public void addHeader(String name, String value) {
+        name = name.toLowerCase();
+        synchronized (headers) {
+            ArrayList values = (ArrayList) headers.get(name);
+            if (values == null) {
+                values = new ArrayList();
+                headers.put(name, values);
+            }
+            values.add(value);
+        }
+    }
+    public String getHeader(String name) {
+        name = name.toLowerCase();
+        synchronized (headers) {
+            ArrayList values = (ArrayList) headers.get(name);
+            if (values != null)
+                return ((String) values.get(0));
+            else
+                return null;
+        }
+    }
+
+    public Enumeration getHeaderNames() {
+        synchronized (headers) {
+            return (new Enumerator(headers.keySet()));
+        }
+    }
+
+    public Enumeration getHeaders(String name) {
+        name = name.toLowerCase();
+        synchronized (headers) {
+            ArrayList values = (ArrayList) headers.get(name);
+            if (values != null)
+                return (new Enumerator(values));
+            else
+                return (new Enumerator(empty));
+        }
+    }
+
+    public int getIntHeader(String name) {
+        String value = getHeader(name);
+        if (value == null)
+            return (-1);
+        else
+            return (Integer.parseInt(value));
+    }
+    protected String pathInfo = null;
   /**
    * The parsed parameters for this request.  This is populated only if
    * parameter information is requested via one of the
@@ -96,14 +150,115 @@ public class HttpRequest implements HttpServletRequest {
    * synchronized.
    */
   protected  ParameterMap parameters = null;
+    protected boolean parsed = false;  //Have the parameters for this request been parsed yet?
+    /**
+     * Parse the parameters of this request, if it has not already occurred.
+     * If parameters are present in both the query string and the request
+     * content, they are merged.
+     */
+    protected void parseParameters() {
+        //已经解析过了
+        if (parsed)
+            return;
 
-  /**
-   * Have the parameters for this request been parsed yet?
-   */
-  protected boolean parsed = false;
-  protected String pathInfo = null;
+        //为了防止下面加工过程出现异常
+        ParameterMap results = parameters;
+        if (results == null)
+            // The name/value pairs can only be added, updated or removed if locked is false.
+            parameters = new ParameterMap();
 
-  /**
+        //设为可修改
+        results.setLocked(false);
+
+        String encoding = getCharacterEncoding();
+        if (encoding == null)
+            encoding = "ISO-8859-1";
+
+        // Parse any parameters specified in the query string
+        String queryString = getQueryString();
+        try {
+            RequestUtil.parseParameters(results, queryString, encoding);
+        }
+        catch (UnsupportedEncodingException e) {
+            ;
+        }
+
+        // Parse any parameters specified in the input stream
+        // the HTTP request body
+        String contentType = getContentType();
+        if (contentType == null)
+            contentType = "";
+        int semicolon = contentType.indexOf(';');
+        if (semicolon >= 0) {
+            contentType = contentType.substring(0, semicolon).trim();
+        }
+        else {
+            contentType = contentType.trim();
+        }
+
+        // If the user requested the servlet using the GET method, all parameters are on the query string.
+        // If the POST method is used, you may find some in the request body too.
+        if ("POST".equals(getMethod()) && (getContentLength() > 0) && "application/x-www-form-urlencoded".equals(contentType)) {
+
+            try {
+                int max = getContentLength();//head里面写的 之前解析的时候set的
+                int len = 0;
+                byte buf[] = new byte[getContentLength()];
+                ServletInputStream is = getInputStream();
+                while (len < max) {
+                    int next = is.read(buf, len, max - len);
+                    if (next < 0 ) {
+                        break;
+                    }
+                    len += next;
+                }
+                is.close();
+                if (len < max) {
+                    throw new RuntimeException("Content length mismatch");
+                }
+                //buf按encoding编码 入results
+                RequestUtil.parseParameters(results, buf, encoding);
+            }
+            catch (UnsupportedEncodingException ue) {
+                ;
+            }
+            catch (IOException e) {
+                throw new RuntimeException("Content read fail");
+            }
+        }
+
+        // Store the final results
+        results.setLocked(true);
+        parsed = true;
+        parameters = results;
+    }
+    public String getParameter(String name) {
+        parseParameters();
+        String values[] = (String[]) parameters.get(name);
+        if (values != null)
+            return (values[0]);
+        else
+            return (null);
+    }
+    public Map getParameterMap() {
+        parseParameters();
+        return (this.parameters);
+    }
+    public Enumeration getParameterNames() {
+        parseParameters();
+        return (new Enumerator(parameters.keySet()));
+    }
+    public String[] getParameterValues(String name) {
+        parseParameters();
+        String values[] = (String[]) parameters.get(name);
+        if (values != null)
+            return (values);
+        else
+            return null;
+    }
+
+
+    /**
    * The reader that has been returned by <code>getReader</code>, if any.
    */
   protected BufferedReader reader = null;
@@ -113,111 +268,36 @@ public class HttpRequest implements HttpServletRequest {
    * <code>getInputStream()</code>, if any.
    */
   protected ServletInputStream stream = null;
+  public BufferedReader getReader() throws IOException {
+    if (stream != null)
+      throw new IllegalStateException("getInputStream has been called.");
+
+    if (reader == null) {
+      String encoding = getCharacterEncoding();
+      if (encoding == null)
+        encoding = "ISO-8859-1";
+      InputStreamReader isr =
+              new InputStreamReader(createInputStream(), encoding);
+      reader = new BufferedReader(isr);
+    }
+    return (reader);
+  }
+  public ServletInputStream getInputStream() throws IOException {
+    if (reader != null)
+      throw new IllegalStateException("getInputStream has been called");
+
+    if (stream == null)
+      stream = createInputStream();
+    return (stream);
+  }
 
   public HttpRequest(InputStream input) {
     this.input = input;
   }
-  //让HttpProcessor 解析时加
-  public void addHeader(String name, String value) {
-    name = name.toLowerCase();
-    synchronized (headers) {
-      ArrayList values = (ArrayList) headers.get(name);
-      if (values == null) {
-        values = new ArrayList();
-        headers.put(name, values);
-      }
-      values.add(value);
-    }
-  }
 
-  /**
-   * Parse the parameters of this request, if it has not already occurred.
-   * If parameters are present in both the query string and the request
-   * content, they are merged.
-   *///TODO parseParameters
-  protected void parseParameters() {
-    //已经解析过了
-    if (parsed)
-      return;
 
-    //为了防止下面加工过程出现异常
-    ParameterMap results = parameters;
-    if (results == null)
-      // The name/value pairs can only be added, updated or removed if locked is false.
-      parameters = new ParameterMap();
 
-    //设为可修改
-    results.setLocked(false);
 
-    String encoding = getCharacterEncoding();
-    if (encoding == null)
-      encoding = "ISO-8859-1";
-
-    // Parse any parameters specified in the query string
-    String queryString = getQueryString();
-    try {
-      RequestUtil.parseParameters(results, queryString, encoding);
-    }
-    catch (UnsupportedEncodingException e) {
-      ;
-    }
-
-    // Parse any parameters specified in the input stream
-    // the HTTP request body
-    String contentType = getContentType();
-    if (contentType == null)
-      contentType = "";
-    int semicolon = contentType.indexOf(';');
-    if (semicolon >= 0) {
-      contentType = contentType.substring(0, semicolon).trim();
-    }
-    else {
-      contentType = contentType.trim();
-    }
-
-    // If the user requested the servlet using the GET method, all parameters are on the query string.
-   // If the POST method is used, you may find some in the request body too.
-    if ("POST".equals(getMethod()) && (getContentLength() > 0) && "application/x-www-form-urlencoded".equals(contentType)) {
-
-      try {
-        int max = getContentLength();//head里面写的 之前解析的时候set的
-        int len = 0;
-        byte buf[] = new byte[getContentLength()];
-        ServletInputStream is = getInputStream();
-        while (len < max) {
-          int next = is.read(buf, len, max - len);
-          if (next < 0 ) {
-            break;
-          }
-          len += next;
-        }
-        is.close();
-        if (len < max) {
-          throw new RuntimeException("Content length mismatch");
-        }
-        //buf按encoding编码 入results
-        RequestUtil.parseParameters(results, buf, encoding);
-      }
-      catch (UnsupportedEncodingException ue) {
-        ;
-      }
-      catch (IOException e) {
-        throw new RuntimeException("Content read fail");
-      }
-    }
-
-    // Store the final results
-    results.setLocked(true);
-    parsed = true;
-    parameters = results;
-  }
-
-  //让HttpProcessor 解析时加
-  public void addCookie(Cookie cookie) {
-    synchronized (cookies) {
-      cookies.add(cookie);
-    }
-  }
 
   /**
    * Create and return a ServletInputStream to read the content
@@ -345,14 +425,7 @@ public class HttpRequest implements HttpServletRequest {
     return contextPath;
   }
 
-  public Cookie[] getCookies() {
-    synchronized (cookies) {
-      if (cookies.size() < 1)
-        return (null);
-      Cookie results[] = new Cookie[cookies.size()];
-      return ((Cookie[]) cookies.toArray(results));
-    }
-  }
+
 
   public long getDateHeader(String name) {
     String value = getHeader(name);
@@ -376,50 +449,7 @@ public class HttpRequest implements HttpServletRequest {
     throw new IllegalArgumentException(value);
   }
 
-  public String getHeader(String name) {
-    name = name.toLowerCase();
-    synchronized (headers) {
-      ArrayList values = (ArrayList) headers.get(name);
-      if (values != null)
-        return ((String) values.get(0));
-      else
-        return null;
-    }
-  }
 
-  public Enumeration getHeaderNames() {
-    synchronized (headers) {
-      return (new Enumerator(headers.keySet()));
-    }
-  }
-
-  public Enumeration getHeaders(String name) {
-    name = name.toLowerCase();
-    synchronized (headers) {
-      ArrayList values = (ArrayList) headers.get(name);
-      if (values != null)
-        return (new Enumerator(values));
-      else
-        return (new Enumerator(empty));
-    }
-  }
-
-  public ServletInputStream getInputStream() throws IOException {
-    if (reader != null)
-      throw new IllegalStateException("getInputStream has been called");
-
-    if (stream == null)
-      stream = createInputStream();
-    return (stream);
-  }
-
-  public int getIntHeader(String name) {
-    String value = getHeader(name);
-    if (value == null)
-      return (-1);
-    else
-      return (Integer.parseInt(value));
-  }
 
   public Locale getLocale() {
     return null;
@@ -433,33 +463,9 @@ public class HttpRequest implements HttpServletRequest {
     return method;
   }
 
-  public String getParameter(String name) {
-    parseParameters();
-    String values[] = (String[]) parameters.get(name);
-    if (values != null)
-      return (values[0]);
-    else
-      return (null);
-  }
 
-  public Map getParameterMap() {
-    parseParameters();
-    return (this.parameters);
-  }
 
-  public Enumeration getParameterNames() {
-    parseParameters();
-    return (new Enumerator(parameters.keySet()));
-  }
 
-  public String[] getParameterValues(String name) {
-    parseParameters();
-    String values[] = (String[]) parameters.get(name);
-    if (values != null)
-      return (values);
-    else
-      return null;
-  }
 
   public String getPathInfo() {
     return pathInfo;
@@ -477,19 +483,7 @@ public class HttpRequest implements HttpServletRequest {
     return queryString;
   }
 
-  public BufferedReader getReader() throws IOException {
-    if (stream != null)
-      throw new IllegalStateException("getInputStream has been called.");
-    if (reader == null) {
-      String encoding = getCharacterEncoding();
-      if (encoding == null)
-        encoding = "ISO-8859-1";
-      InputStreamReader isr =
-        new InputStreamReader(createInputStream(), encoding);
-        reader = new BufferedReader(isr);
-    }
-    return (reader);
-  }
+
 
   public String getRealPath(String path) {
     return null;

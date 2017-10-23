@@ -4,7 +4,7 @@ import java.io.IOException;
 import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
-
+//tomcat2大组件之一 连机器
 public class HttpConnector implements Runnable {
 
   boolean stopped;

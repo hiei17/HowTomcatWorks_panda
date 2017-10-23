@@ -2,15 +2,14 @@ package ex03.pyrmont.connector.http;
 
 import ex03.pyrmont.ServletProcessor;
 import ex03.pyrmont.StaticResourceProcessor;
-
-import java.net.Socket;
-import java.io.OutputStream;
-import java.io.IOException;
-import javax.servlet.ServletException;
-import javax.servlet.http.Cookie;
-
 import org.apache.catalina.util.RequestUtil;
 import org.apache.catalina.util.StringManager;
+
+import javax.servlet.ServletException;
+import javax.servlet.http.Cookie;
+import java.io.IOException;
+import java.io.OutputStream;
+import java.net.Socket;
 
 /* this class used to be called HttpServer */
 public class HttpProcessor {
@@ -53,7 +52,8 @@ public class HttpProcessor {
       response.setHeader("Server", "Pyrmont Servlet Container");
 
       //TODO  are called to help populate the HttpRequest
-      parseRequest(input, output);//第一行
+      //必须是这个顺序 因为里面的输入字节流是从前往后处理  不可能回来
+      parseRequest(input, output);//第一行 url;里面带的传参只整块保存 不解析 要了才解析
       parseHeaders(input);//headers
      // HTTP request body 开始不解析 用到才去解析
 
@@ -89,6 +89,7 @@ public class HttpProcessor {
    */
   private void parseHeaders(SocketInputStream input) throws IOException, ServletException {
 
+    //解析没对head k-v  直到没有
     while (true) {// until there is no more header.
       HttpHeader header = new HttpHeader();;
 
@@ -108,7 +109,7 @@ public class HttpProcessor {
       String value = new String(header.value, 0, header.valueEnd);
       request.addHeader(name, value);
 
-      // do something for some headers, ignore others.
+      //下面几个if do something for some headers, ignore others:
 
       //Cookie: userName=budi; password=pwd;
       if ("cookie".equals(name)) {
@@ -174,7 +175,7 @@ public class HttpProcessor {
     //TODO  Parse any query parameters out of the request URI
     int question = requestLine.indexOf("?");
     if (question >= 0) {
-      //只存 不解析 用到才解析 省点
+      //只存整个字符串 不解析 用到才解析 省点
       request.setQueryString(new String(requestLine.uri, question + 1, requestLine.uriEnd - question - 1));
       uri = new String(requestLine.uri, 0, question);
     }

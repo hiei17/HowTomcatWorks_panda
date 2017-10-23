@@ -1,20 +1,16 @@
 package ex03.pyrmont;
 
-import ex03.pyrmont.connector.http.Constants;
-import ex03.pyrmont.connector.http.HttpRequest;
-import ex03.pyrmont.connector.http.HttpResponse;
-import ex03.pyrmont.connector.http.HttpRequestFacade;
-import ex03.pyrmont.connector.http.HttpResponseFacade;
+import ex03.pyrmont.connector.http.*;
 
+import javax.servlet.Servlet;
 import java.io.File;
 import java.io.IOException;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.net.URLStreamHandler;
-import javax.servlet.Servlet;
 
 public class ServletProcessor {
-
+//加载url指定的Servlet 实例化  调用其service方法(传入参数request response
   public void process(HttpRequest request, HttpResponse response) {
 
     String uri = request.getRequestURI();

@@ -28,9 +28,8 @@ public class HttpServer1 {
 
   public void await() {
     ServerSocket serverSocket = null;
-    int port = 8080;
     try {
-      serverSocket =  new ServerSocket(port, 1, InetAddress.getByName("127.0.0.1"));
+      serverSocket =  new ServerSocket(8080, 1, InetAddress.getByName("127.0.0.1"));
     }
     catch (IOException e) {
       e.printStackTrace();
@@ -49,7 +48,7 @@ public class HttpServer1 {
 
         // create Request object and parse
         Request request = new Request(input);
-        request.parse();
+        request.parse();//输入流解析出url
 
         // create Response object
         Response response = new Response(output);
@@ -60,16 +59,15 @@ public class HttpServer1 {
         String uri = request.getUri();
 
         //TODO 这个新加
-        // check if this is a request for a servlet or a static resource
         // a request for a servlet begins with "/servlet/"
-        if (uri.startsWith("/servlet/")) {
+        if (uri.startsWith("/servlet/")) {//request for a servlet
           ServletProcessor1 processor = new ServletProcessor1();
           processor.process(request, response);//
         }
-        else {
+        else {//for  a static resource
           //第一章实现的
           StaticResourceProcessor processor = new StaticResourceProcessor();
-          processor.process(request, response);
+          processor.process(request, response);//内部调用response的方法找到request要的文件 输出到输出流
         }
 
         // Close the socket

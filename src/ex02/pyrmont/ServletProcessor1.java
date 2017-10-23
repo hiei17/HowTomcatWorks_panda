@@ -12,14 +12,18 @@ public class ServletProcessor1 {
   public void process(Request request, Response response) {
 
     try {
+        //得类加载器
       URLClassLoader  loader = getUrlClassLoader();
       //servlet/servletName
       String uri = request.getUri();
       String servletName = uri.substring(uri.lastIndexOf("/") + 1);
-      assert loader != null;
+     //加载请求指定的servlet类
       Class myClass = loader.loadClass(servletName);
-
+//从类得实例
       Servlet servlet = (Servlet) myClass.newInstance();
+      //request里面有所有请求信息
+        //response可得到输出流
+        //2个都传要给Servlet
       servlet.service(request, response);
     } catch (Exception e) {
       e.printStackTrace();
@@ -27,7 +31,7 @@ public class ServletProcessor1 {
 
   }
 
-	//// create a URLClassLoader
+	//create a URLClassLoader
 	private URLClassLoader getUrlClassLoader() throws IOException {
 
 		File classPath = new File(Constants.WEB_ROOT);
