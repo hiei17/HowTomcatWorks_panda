@@ -9,9 +9,7 @@ public class ModernServlet extends HttpServlet {
     System.out.println("ModernServlet -- init");
   }
 
-  public void doGet(HttpServletRequest request, 
-    HttpServletResponse response) 
-    throws ServletException, IOException {
+  public void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
     
     response.setContentType("text/html");
     PrintWriter out = response.getWriter();
