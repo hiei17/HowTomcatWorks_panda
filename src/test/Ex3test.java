@@ -24,9 +24,28 @@ public class Ex3test {
 
      //   parameters = results;
     }
+    private void parseRequest() {
+      String  uri="http://www.brainysoftware.com/index.html?name=Tarzan";
 
+        // Checking for an absolute URI (with the HTTP protocol)
+        //可能是绝对路径 如 http://www.brainysoftware.com/index.html?name=Tarzan
+        if (!uri.startsWith("/")) {
+
+            int pos = uri.indexOf("://");
+            // Parsing out protocol and host name
+            if (pos != -1) {
+                pos = uri.indexOf('/', pos + 3);
+                if (pos == -1) {
+                    uri = "";
+                } else {
+                    uri = uri.substring(pos);
+                }
+            }
+        }
+    }
     public static void main(String[] d){
         Ex3test e=new Ex3test();
-        e.parseParameters();
+       // e.parseParameters();
+        e.parseRequest();
     }
 }

@@ -24,6 +24,7 @@ public class HttpConnector implements Runnable {
       e.printStackTrace();
       System.exit(1);
     }
+
     while (!stopped) {
       // Accept the next incoming connection from the server socket
       Socket socket = null;

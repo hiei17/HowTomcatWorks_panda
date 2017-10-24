@@ -74,6 +74,7 @@ public class HttpServer1 {
         socket.close();
         //check if the previous URI is a shutdown command
         shutdown = uri.equals(SHUTDOWN_COMMAND);
+
       }
       catch (Exception e) {
         e.printStackTrace();

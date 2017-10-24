@@ -53,7 +53,9 @@ public class HttpProcessor {
 
       //TODO  are called to help populate the HttpRequest
       //必须是这个顺序 因为里面的输入字节流是从前往后处理  不可能回来
+      //得get/post url 参数(可以反session_id
       parseRequest(input, output);//第一行 url;里面带的传参只整块保存 不解析 要了才解析
+      //各种头 比如cookie content-length content-type
       parseHeaders(input);//headers
      // HTTP request body 开始不解析 用到才去解析
 
@@ -95,6 +97,7 @@ public class HttpProcessor {
 
       // Read the next header
       input.readHeader(header);
+
       //If there is no more header to read, both nameEnd and valueEnd fields of the HttpHeader instance will be zero.
       if (header.nameEnd == 0) {
         if (header.valueEnd == 0) {
@@ -108,49 +111,52 @@ public class HttpProcessor {
       String name = new String(header.name, 0, header.nameEnd);
       String value = new String(header.value, 0, header.valueEnd);
       request.addHeader(name, value);
-
-      //下面几个if do something for some headers, ignore others:
-
-      //Cookie: userName=budi; password=pwd;
-      if ("cookie".equals(name)) {
-        //the value is the cookie name/value pair(s).
-        Cookie cookies[] = RequestUtil.parseCookieHeader(value);
-
-        for (int i=0;i<cookies.length;i++) {
-          request.addCookie(cookies[i]);
-
-          //只有jsessionid要特殊处理
-          if (!"jsessionid".equals( cookies[i].getName()))
-            continue;
-
-          // head里面设的 比url里面设的 优先级高  url已经设了就覆盖它
-          if (!request.isRequestedSessionIdFromCookie()) {
-            // Accept only the first session id cookie
-            request.setRequestedSessionId( cookies[i].getValue());
-            request.setRequestedSessionCookie(true);
-            request.setRequestedSessionURL(false);
-          }
-
-        }
-        continue;
-      }
-
-     if ("content-length".equals(name)) {
-        int n = -1;
-        try {
-          n = Integer.parseInt(value);
-        }
-        catch (Exception e) {
-          throw new ServletException(sm.getString("httpProcessor.parseHeaders.contentLength"));
-        }
-        request.setContentLength(n);
-        continue;
-      }
-
-     if ("content-type".equals(name)) {
-        request.setContentType(value);
-      }
+      //有些需要特别处理 单独放好 cookie content-length content-type
+      populateSpecialties(name, value);
     } //end while
+  }
+
+  private void populateSpecialties(String name, String value) throws ServletException {
+    
+    //Cookie: userName=budi; password=pwd;
+    if ("cookie".equals(name)) {
+      //the value is the cookie name/value pair(s).
+      Cookie cookies[] = RequestUtil.parseCookieHeader(value);
+
+      for (int i=0;i<cookies.length;i++) {
+        request.addCookie(cookies[i]);
+
+        //只有jsessionid要特殊处理
+        if (!"jsessionid".equals( cookies[i].getName()))
+          continue;
+
+        // head里面设的 比url里面设的 优先级高  url已经设了就覆盖它
+        if (!request.isRequestedSessionIdFromCookie()) {
+          // Accept only the first session id cookie
+          request.setRequestedSessionId( cookies[i].getValue());
+          request.setRequestedSessionCookie(true);
+          request.setRequestedSessionURL(false);
+        }
+
+      }
+      return;
+    }
+
+    if ("content-length".equals(name)) {
+       int n = -1;
+       try {
+         n = Integer.parseInt(value);
+       }
+       catch (Exception e) {
+         throw new ServletException(sm.getString("httpProcessor.parseHeaders.contentLength"));
+       }
+       request.setContentLength(n);
+      return;
+     }
+
+    if ("content-type".equals(name)) {
+       request.setContentType(value);
+     }
   }
 
 
@@ -160,8 +166,9 @@ public class HttpProcessor {
 
     // Parse the incoming request line
     input.readRequestLine(requestLine);//requestLine里面放入如 GET /myApp/ModernServlet?userName=tarzan&password=pwd HTTP/1.1
+
     String method = new String(requestLine.method, 0, requestLine.methodEnd);//GET
-    String uri = null;
+
     String protocol = new String(requestLine.protocol, 0, requestLine.protocolEnd);//HTTP/1.1
 
     // Validate the incoming request line
@@ -174,13 +181,18 @@ public class HttpProcessor {
 
     //TODO  Parse any query parameters out of the request URI
     int question = requestLine.indexOf("?");
-    if (question >= 0) {
+    String uri = null;
+    if (question >= 0) {//有带参
+      //整段传参部分存request
       //只存整个字符串 不解析 用到才解析 省点
       request.setQueryString(new String(requestLine.uri, question + 1, requestLine.uriEnd - question - 1));
+      //这段截掉
       uri = new String(requestLine.uri, 0, question);
     }
     else {
+      //无参
       request.setQueryString(null);
+      //整行都要
       uri = new String(requestLine.uri, 0, requestLine.uriEnd);
     }
 
@@ -188,6 +200,7 @@ public class HttpProcessor {
     // Checking for an absolute URI (with the HTTP protocol)
     //可能是绝对路径 如 http://www.brainysoftware.com/index.html?name=Tarzan
     if (!uri.startsWith("/")) {
+
       int pos = uri.indexOf("://");
       // Parsing out protocol and host name
       if (pos != -1) {
@@ -196,14 +209,14 @@ public class HttpProcessor {
           uri = "";
         }
         else {
-          uri = uri.substring(pos);
+          uri = uri.substring(pos);//只保留第一个/后面的
         }
       }
     }
 
     // may  contain a session identifier
     // Parse any requested session ID out of the request URI
-    String match = ";jsessionid=";
+    String match = ";jsessionid=";//session_id 一般会放cookie里面 但是这样用jsessionid=XXX放url里面也行(cookie被禁用时只能这样
     int semicolon = uri.indexOf(match);
     if (semicolon >= 0) {
       String rest = uri.substring(semicolon + match.length());
@@ -218,14 +231,14 @@ public class HttpProcessor {
       }
       // means that the session identifier is carried in the query string, and not in a cookie.
       request.setRequestedSessionURL(true);
-      //been stripped off the jsessionid.
+      //TODO been stripped off the jsessionid.
       uri = uri.substring(0, semicolon) + rest;
     }
     else {//session identifier is carried  in a cookie.
       request.setRequestedSessionId(null);
       request.setRequestedSessionURL(false);
     }
-
+//第一个/和?之间那段
     // Normalize URI (using String operations at the moment)
     //If uri is in good format or if the abnormality can be corrected, normalize returns the same URI or the corrected one.
     String normalizedUri = normalize(uri);
@@ -234,9 +247,11 @@ public class HttpProcessor {
     request.setMethod(method);
     request.setProtocol(protocol);
     if (normalizedUri != null) {
+      //url正常
      request.setRequestURI(normalizedUri);
     }
     else {
+      //url不正常 报错
       request.setRequestURI(uri);
       throw new ServletException("Invalid URI: " + uri + "'");
     }
@@ -264,6 +279,7 @@ public class HttpProcessor {
     if (normalized.startsWith("/%7E") || normalized.startsWith("/%7e"))
       normalized = "/~" + normalized.substring(4);
 
+    //这些是保留字符 出现了就不行
     // Prevent encoding '%', '/', '.' and '\', which are special reserved
     // characters
     if ((normalized.indexOf("%25") >= 0)
@@ -279,19 +295,23 @@ public class HttpProcessor {
     if (normalized.equals("/."))
       return "/";
 
+    //'\\'变'/'
     // Normalize the slashes and add leading slash if necessary
     if (normalized.indexOf('\\') >= 0)
       normalized = normalized.replace('\\', '/');
+
+    //以"/"开头
     if (!normalized.startsWith("/"))
       normalized = "/" + normalized;
 
+    //有"//" 去掉
     // Resolve occurrences of "//" in the normalized path
     while (true) {
       int index = normalized.indexOf("//");
       if (index < 0)
         break;
-      normalized = normalized.substring(0, index) +
-        normalized.substring(index + 1);
+
+      normalized = normalized.substring(0, index) + normalized.substring(index + 1);
     }
 
     // Resolve occurrences of "/./" in the normalized path
@@ -310,6 +330,7 @@ public class HttpProcessor {
         break;
       if (index == 0)
         return (null);  // Trying to go outside our context
+
       int index2 = normalized.lastIndexOf('/', index - 1);
       normalized = normalized.substring(0, index2) +
         normalized.substring(index + 3);
