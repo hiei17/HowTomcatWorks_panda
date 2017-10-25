@@ -48,9 +48,11 @@ public class ServletProcessor {
     }
     catch (Exception e) {
       System.out.println(e.toString());
+      e.printStackTrace();
     }
     catch (Throwable e) {
       System.out.println(e.toString());
+      e.printStackTrace();
     }
   }
 }

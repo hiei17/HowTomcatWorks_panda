@@ -165,7 +165,7 @@ public class HttpRequest implements HttpServletRequest {
         ParameterMap results = parameters;
         if (results == null)
             // The name/value pairs can only be added, updated or removed if locked is false.
-            parameters = new ParameterMap();
+            results = new ParameterMap();
 
         //设为可修改
         results.setLocked(false);
