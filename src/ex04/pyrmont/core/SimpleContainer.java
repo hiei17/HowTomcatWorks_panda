@@ -130,8 +130,9 @@ public class SimpleContainer implements Container {
     return null;
   }
 
-  public void invoke(Request request, Response response)
-    throws IOException, ServletException {
+  //TODO 只有这个不是空的 就是原来那个ServletProcessor 没加任何东西
+  //加载url指定的Servlet 实例化  调用其service方法(传入参数request response
+  public void invoke(Request request, Response response) throws IOException, ServletException {
 
     String servletName = ( (HttpServletRequest) request).getRequestURI();
     servletName = servletName.substring(servletName.lastIndexOf("/") + 1);

@@ -289,7 +289,7 @@ public final class HttpConnector
     /**
      * Set the connection timeout for this Connector.
      *
-     * @param count The new connection timeout
+     * @param connectionTimeout The new connection timeout
      */
     public void setConnectionTimeout(int connectionTimeout) {
 
@@ -899,13 +899,14 @@ public final class HttpConnector
     {
 
         // Acquire the server socket factory for this Connector
-        ServerSocketFactory factory = getFactory();
+        ServerSocketFactory factory = getFactory();//只是里面同步new了一个
 
         // If no address is specified, open a connection on all addresses
         if (address == null) {
             log(sm.getString("httpConnector.allAddresses"));
             try {
-                return (factory.createSocket(port, acceptCount));
+                //new ServerSocket(port, backlog)
+                return (factory.createSocket(port, acceptCount));//port 8080   acceptCount默认10
             } catch (BindException be) {
                 throw new BindException(be.getMessage() + ":" + port);
             }
@@ -1101,18 +1102,20 @@ public final class HttpConnector
     /**
      * Initialize this connector (create ServerSocket here!)
      */
-    public void initialize()
-    throws LifecycleException {
-        if (initialized)
-            throw new LifecycleException (
-                sm.getString("httpConnector.alreadyInitialized"));
+    public void initialize() throws LifecycleException {
+        //第二次调用了 不行
+        if (initialized){
+            String message = sm.getString("httpConnector.alreadyInitialized");
+            throw new LifecycleException (message);
+        }
 
-        this.initialized=true;
+
+        initialized=true;
         Exception eRethrow = null;
 
         // Establish a server socket on the specified port
         try {
-            serverSocket = open();
+            serverSocket = open();//TODO
         } catch (IOException ioe) {
             log("httpConnector, io problem: ", ioe);
             eRethrow = ioe;
@@ -1147,9 +1150,10 @@ public final class HttpConnector
     public void start() throws LifecycleException {
 
         // Validate and update our current state
-        if (started)
+        if (started){//已经开始过了
             throw new LifecycleException
-                (sm.getString("httpConnector.alreadyStarted"));
+                    (sm.getString("httpConnector.alreadyStarted"));
+        }
         threadName = "HttpConnector[" + port + "]";
         lifecycle.fireLifecycleEvent(START_EVENT, null);
         started = true;

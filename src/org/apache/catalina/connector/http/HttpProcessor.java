@@ -969,7 +969,7 @@ final class HttpProcessor
                 ((HttpServletResponse) response).setHeader
                     ("Date", FastHttpDateFormat.getCurrentDate());
                 if (ok) {
-                    connector.getContainer().invoke(request, response);
+                    connector.getContainer().invoke(request, response);//
                 }
             } catch (ServletException e) {
                 log("process.invoke", e);
