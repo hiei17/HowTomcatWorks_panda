@@ -73,7 +73,7 @@ public final class HttpConnector
 
     /**
      * The Container used for processing requests received by this Connector.
-     */
+     *///panda 我们自己实现过一个 叫SimpleContainer 里面有个invoke  加载url指定的Servlet 实例化  调用其service方法(传入参数request response
     protected Container container = null;
 
 
@@ -83,10 +83,7 @@ public final class HttpConnector
     private Vector created = new Vector();
 
 
-    /**
-     * The current number of processors that have been created.
-     */
-    private int curProcessors = 0;
+
 
 
     /**
@@ -120,16 +117,10 @@ public final class HttpConnector
     protected LifecycleSupport lifecycle = new LifecycleSupport(this);
 
 
-    /**
-     * The minimum number of processors to start at initialization time.
-     */
-    protected int minProcessors = 5;
 
 
-    /**
-     * The maximum number of processors allowed, or <0 for unlimited.
-     */
-    private int maxProcessors = 20;
+
+
 
 
     /**
@@ -148,8 +139,90 @@ public final class HttpConnector
     /**
      * The set of processors that have been created but are not currently
      * being used to process a request.
-     */
+     *///TODO HttpProcessor变不止一个 并行 可以同时处理很多请求
     private Stack processors = new Stack();
+    protected int minProcessors = 5;
+    public int getMinProcessors() {
+
+        return (minProcessors);
+
+    }
+    public void setMinProcessors(int minProcessors) {
+
+        this.minProcessors = minProcessors;
+
+    }
+    public int getMaxProcessors() {
+
+        return (maxProcessors);
+
+    }
+    private int maxProcessors = 20;//The maximum number of processors allowed, or <0 for unlimited.
+    public void setMaxProcessors(int maxProcessors) {
+
+        this.maxProcessors = maxProcessors;
+
+    }
+    private int curProcessors = 0;
+    public int getCurProcessors() {
+
+        return (curProcessors);
+
+    }
+
+    /**
+     * Begin processing requests via this Connector.
+     *
+     * @exception LifecycleException if a fatal startup error occurs
+     */
+    public void start() throws LifecycleException {
+
+        // Validate and update our current state
+        if (started){//已经开始过了
+            throw new LifecycleException
+                    (sm.getString("httpConnector.alreadyStarted"));
+        }
+        threadName = "HttpConnector[" + port + "]";
+        lifecycle.fireLifecycleEvent(START_EVENT, null);
+        started = true;
+
+        // Start our background thread
+        threadStart();//TODO 本线程开始run
+
+        //panda Create the specified minimum number of processors
+        while (curProcessors < minProcessors) {
+            //超过最大了  就算了 再多也不接待了
+            if ((maxProcessors > 0) && (curProcessors >= maxProcessors))
+                break;
+            //new 一个HttpProcessor
+            HttpProcessor processor = newProcessor();
+            //push 入 Stack processors
+            recycle(processor);
+        }
+
+    }
+
+    /**
+     * Create and return a new processor suitable for processing HTTP
+     * requests and returning the corresponding responses.
+     */
+    private HttpProcessor newProcessor() {
+
+        //        if (debug >= 2)
+        //            log("newProcessor: Creating new processor");
+        HttpProcessor processor = new HttpProcessor(this, curProcessors++);
+        if (processor instanceof Lifecycle) {
+            try {
+                ((Lifecycle) processor).start();
+            } catch (LifecycleException e) {
+                log("newProcessor", e);
+                return (null);
+            }
+        }
+        created.addElement(processor);
+        return (processor);
+
+    }
 
 
     /**
@@ -430,14 +503,6 @@ public final class HttpConnector
     }
 
 
-    /**
-     * Return the current number of processors that have been created.
-     */
-    public int getCurProcessors() {
-
-        return (curProcessors);
-
-    }
 
 
     /**
@@ -521,48 +586,6 @@ public final class HttpConnector
     }
 
 
-    /**
-     * Return the minimum number of processors to start at initialization.
-     */
-    public int getMinProcessors() {
-
-        return (minProcessors);
-
-    }
-
-
-    /**
-     * Set the minimum number of processors to start at initialization.
-     *
-     * @param minProcessors The new minimum processors
-     */
-    public void setMinProcessors(int minProcessors) {
-
-        this.minProcessors = minProcessors;
-
-    }
-
-
-    /**
-     * Return the maximum number of processors allowed, or <0 for unlimited.
-     */
-    public int getMaxProcessors() {
-
-        return (maxProcessors);
-
-    }
-
-
-    /**
-     * Set the maximum number of processors allowed, or <0 for unlimited.
-     *
-     * @param maxProcessors The new maximum processors
-     */
-    public void setMaxProcessors(int maxProcessors) {
-
-        this.maxProcessors = maxProcessors;
-
-    }
 
 
     /**
@@ -732,7 +755,7 @@ public final class HttpConnector
     /**
      * Create (or allocate) and return a Request object suitable for
      * specifying the contents of a Request to the responsible Container.
-     */
+     *///panda  创造Request  等HttpProcessor调用
     public Request createRequest() {
 
         //        if (debug >= 2)
@@ -747,7 +770,7 @@ public final class HttpConnector
     /**
      * Create (or allocate) and return a Response object suitable for
      * receiving the contents of a Response from the responsible Container.
-     */
+     *///panda 负责提供一个Response //HttpProcessor构造方法来调用
     public Response createResponse() {
 
         //        if (debug >= 2)
@@ -853,27 +876,7 @@ public final class HttpConnector
     }
 
 
-    /**
-     * Create and return a new processor suitable for processing HTTP
-     * requests and returning the corresponding responses.
-     */
-    private HttpProcessor newProcessor() {
 
-        //        if (debug >= 2)
-        //            log("newProcessor: Creating new processor");
-        HttpProcessor processor = new HttpProcessor(this, curProcessors++);
-        if (processor instanceof Lifecycle) {
-            try {
-                ((Lifecycle) processor).start();
-            } catch (LifecycleException e) {
-                log("newProcessor", e);
-                return (null);
-            }
-        }
-        created.addElement(processor);
-        return (processor);
-
-    }
 
 
     /**
@@ -899,8 +902,9 @@ public final class HttpConnector
     {
 
         // Acquire the server socket factory for this Connector
-        ServerSocketFactory factory = getFactory();//只是里面同步new了一个
+        ServerSocketFactory factory = getFactory();//只是里面同步锁 同步new了一个
 
+        //非空判断
         // If no address is specified, open a connection on all addresses
         if (address == null) {
             log(sm.getString("httpConnector.allAddresses"));
@@ -917,7 +921,7 @@ public final class HttpConnector
             InetAddress is = InetAddress.getByName(address);
             log(sm.getString("httpConnector.anAddress", address));
             try {
-                return (factory.createSocket(port, acceptCount, is));
+                return (factory.createSocket(port, acceptCount, is));//里面一个普通的 new ServerSocket(8080, 1, InetAddress.getByName("127.0.0.1"));
             } catch (BindException be) {
                 throw new BindException(be.getMessage() + ":" + address +
                                         ":" + port);
@@ -940,15 +944,19 @@ public final class HttpConnector
     /**
      * The background thread that listens for incoming TCP/IP connections and
      * hands them off to an appropriate processor.
+     * 来给请求开一个HttpProcessor 不本实例传参进去让其解析
+     * 不等它解析结束 继续接待下一个请求
      */
-    public void run() {
+    public void run() {//TODO 本类开始 和主体
         // Loop until we receive a shutdown command
+        //死循环等待请求
         while (!stopped) {
             // Accept the next incoming connection from the server socket
             Socket socket = null;
             try {
                 //                if (debug >= 3)
                 //                    log("run: Waiting on serverSocket.accept()");
+                //卡在这 等请求
                 socket = serverSocket.accept();
                 //                if (debug >= 3)
                 //                    log("run: Returned from serverSocket.accept()");
@@ -1001,7 +1009,9 @@ public final class HttpConnector
             }
 
             // Hand this socket off to an appropriate processor
+            //去池中取一个HttpProcessor 已经run的
             HttpProcessor processor = createProcessor();
+            //满了 不接受新请求了
             if (processor == null) {
                 try {
                     log(sm.getString("httpConnector.noProcessor"));
@@ -1013,6 +1023,9 @@ public final class HttpConnector
             }
             //            if (debug >= 3)
             //                log("run: Assigning socket to processor " + processor);
+
+            //It's now the HttpProcessor instance's job to read the socket's input stream and parse the HTTP request.
+            //进去就wait()了
             processor.assign(socket);
 
             // The processor will recycle itself when it finishes
@@ -1115,7 +1128,7 @@ public final class HttpConnector
 
         // Establish a server socket on the specified port
         try {
-            serverSocket = open();//TODO
+            serverSocket = open();//TODO 主要是这个 不是直接构造 改进为通过工厂
         } catch (IOException ioe) {
             log("httpConnector, io problem: ", ioe);
             eRethrow = ioe;
@@ -1142,34 +1155,7 @@ public final class HttpConnector
     }
 
 
-    /**
-     * Begin processing requests via this Connector.
-     *
-     * @exception LifecycleException if a fatal startup error occurs
-     */
-    public void start() throws LifecycleException {
 
-        // Validate and update our current state
-        if (started){//已经开始过了
-            throw new LifecycleException
-                    (sm.getString("httpConnector.alreadyStarted"));
-        }
-        threadName = "HttpConnector[" + port + "]";
-        lifecycle.fireLifecycleEvent(START_EVENT, null);
-        started = true;
-
-        // Start our background thread
-        threadStart();
-
-        // Create the specified minimum number of processors
-        while (curProcessors < minProcessors) {
-            if ((maxProcessors > 0) && (curProcessors >= maxProcessors))
-                break;
-            HttpProcessor processor = newProcessor();
-            recycle(processor);
-        }
-
-    }
 
 
     /**

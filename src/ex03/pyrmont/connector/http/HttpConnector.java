@@ -4,7 +4,7 @@ import java.io.IOException;
 import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
-//tomcat2�����֮һ ������
+//tomcat2�����֮һ ������
 public class HttpConnector implements Runnable {
 
   boolean stopped;
@@ -25,6 +25,7 @@ public class HttpConnector implements Runnable {
       System.exit(1);
     }
 
+    //是同步的 单线 这个请求处理完才能处理下一个请求
     while (!stopped) {
       // Accept the next incoming connection from the server socket
       Socket socket = null;
@@ -36,6 +37,7 @@ public class HttpConnector implements Runnable {
       }
       // Hand this socket off to an HttpProcessor
       HttpProcessor processor = new HttpProcessor(this);
+      //要等这个处理完 才能接待下一个请求
       processor.process(socket);
     }
   }

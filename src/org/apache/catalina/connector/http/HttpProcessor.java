@@ -85,9 +85,7 @@ final class HttpProcessor
     // ----------------------------------------------------- Instance Variables
 
 
-    /**
-     * Is there a new socket available?
-     */
+    //有新请求就变true 死循环里面开始解析
     private boolean available = false;
 
 
@@ -284,21 +282,23 @@ final class HttpProcessor
      * requests can be handled.
      *
      * @param socket TCP socket to process
-     */
-    synchronized void assign(Socket socket) {
+     *///得到一个新的socket就可以通知解析了
+    synchronized void assign(Socket socket) {//panda
 
         // Wait for the Processor to get the previous Socket
+        //上一个Socket还没解析完 等待
         while (available) {
             try {
-                wait();
+                wait();//本线程转入等待
             } catch (InterruptedException e) {
             }
         }
 
         // Store the newly available Socket and notify our thread
         this.socket = socket;
+        //这个能通知本实例的死循环 有新请求了
         available = true;
-        notifyAll();
+        notifyAll();//通知其他所有线程wait()的可以运行了
 
         if ((debug >= 1) && (socket != null))
             log(" An incoming request is being assigned");
@@ -316,6 +316,7 @@ final class HttpProcessor
     private synchronized Socket await() {
 
         // Wait for the Connector to provide a new Socket
+        //没有新请求给它
         while (!available) {
             try {
                 wait();
@@ -325,8 +326,8 @@ final class HttpProcessor
 
         // Notify the Connector that we have received this Socket
         Socket socket = this.socket;
-        available = false;
-        notifyAll();
+        available = false;//本线程开始解析工作了 不能接新活了
+        notifyAll();//通知本对象其他线程wait()的可以运行了
 
         if ((debug >= 1) && (socket != null))
             log("  The incoming request has been awaited");
@@ -875,7 +876,7 @@ final class HttpProcessor
      *
      * @param socket The socket on which we are connected to the client
      */
-    private void process(Socket socket) {
+    private void process(Socket socket) {//panda parses the HTTP request and invoke the container's invokemethod
         boolean ok = true;
         boolean finishResponse = true;
         SocketInputStream input = null;
@@ -1070,24 +1071,25 @@ final class HttpProcessor
      * The background thread that listens for incoming TCP/IP connections and
      * hands them off to an appropriate processor.
      */
-    public void run() {
+    public void run() {//panda 开始的地方
 
         // Process requests until we receive a shutdown signal
         while (!stopped) {
 
             // Wait for the next socket to be assigned
-            Socket socket = await();
+            Socket socket = await();//一运行就卡在这 等Connector里面调用processor.assign(socket);
             if (socket == null)
                 continue;
 
             // Process the request from this socket
             try {
-                process(socket);
+                process(socket);//panda 解析输入流 填充requst
             } catch (Throwable t) {
                 log("process.invoke", t);
             }
 
             // Finish up this request
+            //把本实例返回connector里面的池 复用 省得每次new这么浪费
             connector.recycle(this);
 
         }

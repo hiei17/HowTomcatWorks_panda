@@ -15,8 +15,8 @@ public final class Bootstrap {
     SimpleContainer container = new SimpleContainer();
     connector.setContainer(container);
     try {
-      connector.initialize();//主要是new ServerSocket(port, backlog)
-      connector.start();
+      connector.initialize();//就是准备了 new ServerSocket(port, 1, InetAddress.getByName("127.0.0.1"));
+      connector.start();//主要是线程开始
 
       // make the application wait until we press any key.
       System.in.read();
