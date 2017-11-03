@@ -35,7 +35,7 @@ import org.apache.catalina.util.StringManager;
  * @author Craig R. McClanahan
  * @author Remy Maucherat
  * @version $Revision: 1.34 $ $Date: 2002/03/18 07:15:39 $
- * @deprecated
+ * 
  */
 
 
@@ -951,7 +951,7 @@ public final class HttpConnector
         // Loop until we receive a shutdown command
         //死循环等待请求
         while (!stopped) {
-            // Accept the next incoming connection from the server socket
+
             Socket socket = null;
             try {
                 //                if (debug >= 3)
@@ -962,7 +962,7 @@ public final class HttpConnector
                 //                    log("run: Returned from serverSocket.accept()");
                 if (connectionTimeout > 0)
                     socket.setSoTimeout(connectionTimeout);
-                socket.setTcpNoDelay(tcpNoDelay);
+                    socket.setTcpNoDelay(tcpNoDelay);
             } catch (AccessControlException ace) {
                 log("socket accept security exception", ace);
                 continue;
@@ -1009,7 +1009,7 @@ public final class HttpConnector
             }
 
             // Hand this socket off to an appropriate processor
-            //去池中取一个HttpProcessor 已经run的
+            //去池中取一个HttpProcessor(已经run了
             HttpProcessor processor = createProcessor();
             //满了 不接受新请求了
             if (processor == null) {
@@ -1026,7 +1026,7 @@ public final class HttpConnector
 
             //It's now the HttpProcessor instance's job to read the socket's input stream and parse the HTTP request.
             //进去就wait()了
-            processor.assign(socket);
+            processor.assign(socket);//把socket传过去 让这个线程开始解析
 
             // The processor will recycle itself when it finishes
 

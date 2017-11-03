@@ -39,7 +39,7 @@ import org.apache.catalina.util.StringParser;
  * @author Craig R. McClanahan
  * @author Remy Maucherat
  * @version $Revision: 1.46 $ $Date: 2002/04/04 17:50:34 $
- * @deprecated
+ * 
  */
 
 final class HttpProcessor
@@ -86,7 +86,7 @@ final class HttpProcessor
 
 
     //有新请求就变true 死循环里面开始解析
-    private boolean available = false;
+    private boolean available = false;//await赋值false 和 assign赋值true
 
 
     /**
@@ -172,7 +172,7 @@ final class HttpProcessor
     /**
      * The socket we are currently processing a request for.  This object
      * is used for inter-thread communication only.
-     */
+     *///下一个要解析的socket放这 等当前socket解析完了 来拿
     private Socket socket = null;
 
 
@@ -282,23 +282,24 @@ final class HttpProcessor
      * requests can be handled.
      *
      * @param socket TCP socket to process
-     *///得到一个新的socket就可以通知解析了
+     *///得到一个新的socket就可以通知解析了//在连接器里面调用
     synchronized void assign(Socket socket) {//panda
 
         // Wait for the Processor to get the previous Socket
         //上一个Socket还没解析完 等待
         while (available) {
             try {
-                wait();//本线程转入等待
+                wait();//本线程转入等待//本类另一个wait()在await 里面//等await通知就可以继续了
             } catch (InterruptedException e) {
             }
         }
 
         // Store the newly available Socket and notify our thread
         this.socket = socket;
-        //这个能通知本实例的死循环 有新请求了
+
+        //await里面可以往下执行了
         available = true;
-        notifyAll();//通知其他所有线程wait()的可以运行了
+        notifyAll();
 
         if ((debug >= 1) && (socket != null))
             log(" An incoming request is being assigned");
@@ -312,22 +313,24 @@ final class HttpProcessor
     /**
      * Await a newly assigned Socket from our Connector, or <code>null</code>
      * if we are supposed to shut down.
-     */
+     *///在run()死循环里面调用
     private synchronized Socket await() {
 
         // Wait for the Connector to provide a new Socket
         //没有新请求给它
         while (!available) {
             try {
-                wait();
+                wait();//本类2个wait 另一个在assign里面//等assign通知就可以继续了
             } catch (InterruptedException e) {
             }
         }
 
         // Notify the Connector that we have received this Socket
-        Socket socket = this.socket;
+        Socket socket = this.socket;//用this.socket中转 做暂时存储
+
+        //assign里面可以往下执行了
         available = false;//本线程开始解析工作了 不能接新活了
-        notifyAll();//通知本对象其他线程wait()的可以运行了
+        notifyAll();//通知assign里面的wait可以继续了
 
         if ((debug >= 1) && (socket != null))
             log("  The incoming request has been awaited");
@@ -1077,11 +1080,8 @@ final class HttpProcessor
         while (!stopped) {
 
             // Wait for the next socket to be assigned
-            Socket socket = await();//一运行就卡在这 等Connector里面调用processor.assign(socket);
-            if (socket == null)
-                continue;
+            Socket socket = await();//一运行就卡在这 等Connector里面调用processor.assign(socket);里面的notifyAll
 
-            // Process the request from this socket
             try {
                 process(socket);//panda 解析输入流 填充requst
             } catch (Throwable t) {
