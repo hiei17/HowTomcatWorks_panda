@@ -284,7 +284,7 @@ final class HttpProcessor
      * @param socket TCP socket to process
      *///得到一个新的socket就可以通知解析了//在连接器里面调用
     synchronized void assign(Socket socket) {//panda
-        
+
         // Store the newly available Socket and notify our thread
         this.socket = socket;
         //await里面可以往下执行了
@@ -1080,7 +1080,7 @@ final class HttpProcessor
         connector.recycle(this);
         // Tell threadStop() we have shut ourselves down successfully
         synchronized (threadSync) {
-            threadSync.notifyAll();
+            threadSync.notifyAll();//panda  ?
         }
 
     }
