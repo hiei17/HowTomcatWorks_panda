@@ -1,33 +1,20 @@
 package org.apache.catalina.connector.http;
 
 
+import org.apache.catalina.*;
+import org.apache.catalina.net.DefaultServerSocketFactory;
+import org.apache.catalina.net.ServerSocketFactory;
+import org.apache.catalina.util.LifecycleSupport;
+import org.apache.catalina.util.StringManager;
+
 import java.io.IOException;
 import java.net.BindException;
 import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.security.AccessControlException;
-
-import java.security.KeyStoreException;
-import java.security.NoSuchAlgorithmException;
+import java.security.*;
 import java.security.cert.CertificateException;
-import java.security.UnrecoverableKeyException;
-import java.security.KeyManagementException;
 import java.util.Stack;
-
-import org.apache.catalina.Connector;
-import org.apache.catalina.Container;
-import org.apache.catalina.Lifecycle;
-import org.apache.catalina.LifecycleException;
-import org.apache.catalina.LifecycleListener;
-import org.apache.catalina.Logger;
-import org.apache.catalina.Request;
-import org.apache.catalina.Response;
-import org.apache.catalina.Service;
-import org.apache.catalina.net.DefaultServerSocketFactory;
-import org.apache.catalina.net.ServerSocketFactory;
-import org.apache.catalina.util.LifecycleSupport;
-import org.apache.catalina.util.StringManager;
 import java.util.Vector;
 
 
@@ -416,7 +403,7 @@ public final class HttpConnector implements Connector, Lifecycle, Runnable {
      */
     public int getPort() {
 
-        return (this.port);
+        return port;
 
     }
 
@@ -451,7 +438,7 @@ public final class HttpConnector implements Connector, Lifecycle, Runnable {
      */
     public int getProxyPort() {
 
-        return (this.proxyPort);
+        return proxyPort;
 
     }
 
@@ -607,7 +594,7 @@ public final class HttpConnector implements Connector, Lifecycle, Runnable {
                 //                    log("run: Returned from serverSocket.accept()");
                 if (connectionTimeout > 0)
                     socket.setSoTimeout(connectionTimeout);
-                    socket.setTcpNoDelay(tcpNoDelay);
+                socket.setTcpNoDelay(tcpNoDelay);
 
             } catch (AccessControlException ace) {
                 log("socket accept security exception", ace);
@@ -672,7 +659,11 @@ public final class HttpConnector implements Connector, Lifecycle, Runnable {
 
             //It's now the HttpProcessor instance's job to read the socket's input stream and parse the HTTP request.
             //进去就wait()了
-            processor.assign(socket);//把socket传过去 让这个线程开始解析
+            try {
+                processor.assign(socket);//把socket传过去 让这个线程开始解析
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
 
             // The processor will recycle itself when it finishes
 

@@ -17,9 +17,9 @@ public final class Bootstrap {
     SimpleContainer container = new SimpleContainer();
 
     //比上一章节的改进是
-    //1. provide a pool of various(HttpProcessor) objects to avoid the expensive
-    //2.uses char arrays instead of strings.
-    //3. 支持HTTP 1.1
+    //1. provide a pool of various(HttpProcessor) objects to avoid the expensive   有一个HttpProcessor的线程pool
+    //2.uses char arrays instead of strings. 解析head的时候
+    //3. 支持HTTP 1.1 放while循环里面 没完就不断
     connector.setContainer(container);//会调用容器的invoke方法 传入request和response
     try {
       connector.initialize();//就是准备了 new ServerSocket(port, 1, InetAddress.getByName("127.0.0.1"));

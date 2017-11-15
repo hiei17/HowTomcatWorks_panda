@@ -114,7 +114,7 @@ public class ServerInfo {
      */
     public static String getServerInfo() {
 
-        return (serverInfo);
+        return serverInfo;
 
     }
 
