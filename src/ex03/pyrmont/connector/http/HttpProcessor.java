@@ -34,6 +34,7 @@ public class HttpProcessor {
   protected StringManager sm = StringManager.getManager("ex03.pyrmont.connector.http");
 
   public void process(Socket socket) {
+
     SocketInputStream input = null;
     OutputStream output = null;
     try {
@@ -47,14 +48,13 @@ public class HttpProcessor {
       // create HttpResponse object
       response = new HttpResponse(output);
       response.setRequest(request);
-      response.setRequest(request);
-
       response.setHeader("Server", "Pyrmont Servlet Container");
 
       //TODO  are called to help populate the HttpRequest
       //必须是这个顺序 因为里面的输入字节流是从前往后处理  不可能回来
-      //得get/post url 参数(可以反session_id
+      //得get/post url 参数(可以放session_id
       parseRequest(input, output);//第一行 url;里面带的传参只整块保存 不解析 要了才解析
+
       //各种头 比如cookie content-length content-type
       parseHeaders(input);//headers
      // HTTP request body 开始不解析 用到才去解析
@@ -62,12 +62,12 @@ public class HttpProcessor {
       //check if this is a request for a servlet or a static resource
       //a request for a servlet begins with "/servlet/"
       if (request.getRequestURI().startsWith("/servlet/")) {
-        ServletProcessor processor = new ServletProcessor();
-        processor.process(request, response);
+        ServletProcessor servletProcessor = new ServletProcessor();
+        servletProcessor.process(request, response);
       }
-      else {
-        StaticResourceProcessor processor = new StaticResourceProcessor();
-        processor.process(request, response);
+      else {//静态资源
+        StaticResourceProcessor staticResourceProcessor = new StaticResourceProcessor();
+        staticResourceProcessor.process(request, response);
       }
 
       // Close the socket
@@ -93,6 +93,7 @@ public class HttpProcessor {
 
     //解析没对head k-v  直到没有
     while (true) {// until there is no more header.
+
       HttpHeader header = new HttpHeader();;
 
       // Read the next header
@@ -101,7 +102,7 @@ public class HttpProcessor {
       //If there is no more header to read, both nameEnd and valueEnd fields of the HttpHeader instance will be zero.
       if (header.nameEnd == 0) {
         if (header.valueEnd == 0) {
-          return;
+          return;//这里出去
         }
         //不成对
         throw new ServletException(sm.getString("httpProcessor.parseHeaders.colon"));
@@ -111,6 +112,7 @@ public class HttpProcessor {
       String name = new String(header.name, 0, header.nameEnd);
       String value = new String(header.value, 0, header.valueEnd);
       request.addHeader(name, value);
+
       //有些需要特别处理 单独放好 cookie content-length content-type
       populateSpecialties(name, value);
     } //end while
@@ -171,6 +173,7 @@ public class HttpProcessor {
 
     String protocol = new String(requestLine.protocol, 0, requestLine.protocolEnd);//HTTP/1.1
 
+
     // Validate the incoming request line
     if (method.length() < 1) {
       throw new ServletException("Missing HTTP request method");
@@ -178,8 +181,11 @@ public class HttpProcessor {
     else if (requestLine.uriEnd < 1) {
       throw new ServletException("Missing HTTP request URI");
     }
+    request.setMethod(method);
+    request.setProtocol(protocol);
 
     //TODO  Parse any query parameters out of the request URI
+    //?name=Tarzan
     int question = requestLine.indexOf("?");
     String uri = null;
     if (question >= 0) {//有带参
@@ -198,25 +204,27 @@ public class HttpProcessor {
 
 
     // Checking for an absolute URI (with the HTTP protocol)
-    //可能是绝对路径 如 http://www.brainysoftware.com/index.html?name=Tarzan
+    //绝对路径 如 http://www.brainysoftware.com/index.html
     if (!uri.startsWith("/")) {
 
       int pos = uri.indexOf("://");
       // Parsing out protocol and host name
       if (pos != -1) {
+        // http:// 之后第一个/
         pos = uri.indexOf('/', pos + 3);
+
         if (pos == -1) {
           uri = "";
-        }
-        else {
+        } else {
           uri = uri.substring(pos);//只保留第一个/后面的
         }
+
       }
     }
 
     // may  contain a session identifier
     // Parse any requested session ID out of the request URI
-    String match = ";jsessionid=";//session_id 一般会放cookie里面 但是这样用jsessionid=XXX放url里面也行(cookie被禁用时只能这样
+    String match = ";jsessionid=";//session_id 一般会放cookie里面 但是这样用;jsessionid=XXX;放url里面也行(cookie被禁用时只能这样
     int semicolon = uri.indexOf(match);
     if (semicolon >= 0) {
       String rest = uri.substring(semicolon + match.length());
@@ -238,14 +246,11 @@ public class HttpProcessor {
       request.setRequestedSessionId(null);
       request.setRequestedSessionURL(false);
     }
-//第一个/和?之间那段
+
+//第一个/和?之间那段 去掉";jsessionid=XXX;"
     // Normalize URI (using String operations at the moment)
     //If uri is in good format or if the abnormality can be corrected, normalize returns the same URI or the corrected one.
     String normalizedUri = normalize(uri);
-
-    // Set the corresponding request properties
-    request.setMethod(method);
-    request.setProtocol(protocol);
     if (normalizedUri != null) {
       //url正常
      request.setRequestURI(normalizedUri);

@@ -10,12 +10,44 @@ import java.net.URLClassLoader;
 import java.net.URLStreamHandler;
 
 public class ServletProcessor {
+
 //加载url指定的Servlet 实例化  调用其service方法(传入参数request response
   public void process(HttpRequest request, HttpResponse response) {
 
+    ///第一个/和?之间那段 去掉";jsessionid=XXX;"
     String uri = request.getRequestURI();
     String servletName = uri.substring(uri.lastIndexOf("/") + 1);
     URLClassLoader loader = null;
+    loader = getUrlClassLoader(loader);
+    Class myClass = null;
+    try {
+      myClass = loader.loadClass(servletName);
+    } catch (ClassNotFoundException e) {
+      System.out.println(e.toString());
+    }
+
+    Servlet servlet = null;
+
+    try {
+      servlet = (Servlet) myClass.newInstance();
+      HttpRequestFacade requestFacade = new HttpRequestFacade(request);
+      HttpResponseFacade responseFacade = new HttpResponseFacade(response);
+      servlet.service(requestFacade, responseFacade);
+
+      // 刷新并关闭流
+      ((HttpResponse) response).finishResponse();
+    }
+    catch (Exception e) {
+      System.out.println(e.toString());
+      e.printStackTrace();
+    }
+    catch (Throwable e) {
+      System.out.println(e.toString());
+      e.printStackTrace();
+    }
+  }
+
+  private URLClassLoader getUrlClassLoader(URLClassLoader loader) {
     try {
       // create a URLClassLoader
       URL[] urls = new URL[1];
@@ -28,31 +60,6 @@ public class ServletProcessor {
     catch (IOException e) {
       System.out.println(e.toString() );
     }
-    Class myClass = null;
-    try {
-      myClass = loader.loadClass(servletName);
-    }
-    catch (ClassNotFoundException e) {
-      System.out.println(e.toString());
-    }
-
-    Servlet servlet = null;
-
-    try {
-      servlet = (Servlet) myClass.newInstance();
-      HttpRequestFacade requestFacade = new HttpRequestFacade(request);
-      HttpResponseFacade responseFacade = new HttpResponseFacade(response);
-      servlet.service(requestFacade, responseFacade);
-      //TODO 刷新并关闭流
-      ((HttpResponse) response).finishResponse();
-    }
-    catch (Exception e) {
-      System.out.println(e.toString());
-      e.printStackTrace();
-    }
-    catch (Throwable e) {
-      System.out.println(e.toString());
-      e.printStackTrace();
-    }
+    return loader;
   }
 }

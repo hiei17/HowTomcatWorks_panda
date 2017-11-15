@@ -132,8 +132,7 @@ public interface ServerSocketFactory {
      * @exception KeyManagementException     problem in the key management
      *                                       layer (SSL only)
      */
-    public ServerSocket createSocket (int port, int backlog)
-    throws IOException, KeyStoreException, NoSuchAlgorithmException,
+    public ServerSocket createSocket (int port, int backlog) throws IOException, KeyStoreException, NoSuchAlgorithmException,
            CertificateException, UnrecoverableKeyException,
            KeyManagementException;
 

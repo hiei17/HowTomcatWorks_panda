@@ -184,7 +184,7 @@ final class HttpProcessor
 
     /**
      * The shutdown signal to our background thread
-     */
+     *///HttpProcessor instance has been stopped by the connector so that the process method should also stop
     private boolean stopped = false;
 
 
@@ -214,7 +214,7 @@ final class HttpProcessor
 
     /**
      * HTTP/1.1 client.
-     */
+     */// the HTTP request is coming from a web client that supports HTTP 1.1
     private boolean http11 = true;
 
 
@@ -284,26 +284,15 @@ final class HttpProcessor
      * @param socket TCP socket to process
      *///得到一个新的socket就可以通知解析了//在连接器里面调用
     synchronized void assign(Socket socket) {//panda
-
-        // Wait for the Processor to get the previous Socket
-        //上一个Socket还没解析完 等待
-        while (available) {
-            try {
-                wait();//本线程转入等待//本类另一个wait()在await 里面//等await通知就可以继续了
-            } catch (InterruptedException e) {
-            }
-        }
-
+        
         // Store the newly available Socket and notify our thread
         this.socket = socket;
-
         //await里面可以往下执行了
         available = true;
         notifyAll();
 
         if ((debug >= 1) && (socket != null))
             log(" An incoming request is being assigned");
-
     }
 
 
@@ -314,27 +303,19 @@ final class HttpProcessor
      * Await a newly assigned Socket from our Connector, or <code>null</code>
      * if we are supposed to shut down.
      *///在run()死循环里面调用
-    private synchronized Socket await() {
+    private synchronized Socket await() throws InterruptedException {
 
         // Wait for the Connector to provide a new Socket
         //没有新请求给它
         while (!available) {
-            try {
-                wait();//本类2个wait 另一个在assign里面//等assign通知就可以继续了
-            } catch (InterruptedException e) {
-            }
+            wait();//本类2个wait 另一个在assign里面//等assign通知就可以继续了
         }
-
         // Notify the Connector that we have received this Socket
         Socket socket = this.socket;//用this.socket中转 做暂时存储
-
-        //assign里面可以往下执行了
-        available = false;//本线程开始解析工作了 不能接新活了
+        available = false;
         notifyAll();//通知assign里面的wait可以继续了
-
         if ((debug >= 1) && (socket != null))
             log("  The incoming request has been awaited");
-
         return (socket);
 
     }
@@ -490,17 +471,18 @@ final class HttpProcessor
      * @exception IOException if an input/output error occurs
      * @exception ServletException if a parsing error occurs
      */
-    private void parseConnection(Socket socket)
-        throws IOException, ServletException {
+    private void parseConnection(Socket socket) throws IOException, ServletException {
 
         if (debug >= 2)
             log("  parseConnection: address=" + socket.getInetAddress() +
                 ", port=" + connector.getPort());
         ((HttpRequestImpl) request).setInet(socket.getInetAddress());
+
         if (proxyPort != 0)
             request.setServerPort(proxyPort);
         else
             request.setServerPort(serverPort);
+
         request.setSocket(socket);
 
     }
@@ -571,9 +553,7 @@ final class HttpProcessor
                 try {
                     n = Integer.parseInt(value);
                 } catch (Exception e) {
-                    throw new ServletException
-                        (sm.getString
-                         ("httpProcessor.parseHeaders.contentLength"));
+                    throw new ServletException(sm.getString("httpProcessor.parseHeaders.contentLength"));
                 }
                 request.setContentLength(n);
             } else if (header.equals(DefaultHeaders.CONTENT_TYPE_NAME)) {
@@ -880,34 +860,40 @@ final class HttpProcessor
      * @param socket The socket on which we are connected to the client
      */
     private void process(Socket socket) {//panda parses the HTTP request and invoke the container's invokemethod
+        //no error during the process
         boolean ok = true;
+        // finishResponse method of the Response interface should be called
         boolean finishResponse = true;
         SocketInputStream input = null;
         OutputStream output = null;
 
         // Construct and initialize the objects we will need
         try {
-            input = new SocketInputStream(socket.getInputStream(),
-                                          connector.getBufferSize());
+            //缓冲大小在连接器里面设
+            input = new SocketInputStream(socket.getInputStream(),  connector.getBufferSize());
         } catch (Exception e) {
             log("process.create", e);
             ok = false;
         }
 
+        // connection is persistent
         keepAlive = true;
 
+        //keeps reading the input stream until the HttpProcessor is stopped/ connection is closed.
         while (!stopped && ok && keepAlive) {
 
             finishResponse = true;
 
             try {
-                request.setStream(input);
-                request.setResponse(response);
+                request.setStream(input);//Socket里面拿到是输入流
+                request.setResponse(response);//请求和响应互相拥有
                 output = socket.getOutputStream();
                 response.setStream(output);
                 response.setRequest(request);
-                ((HttpServletResponse) response.getResponse()).setHeader
-                    ("Server", SERVER_INFO);
+
+                ((HttpServletResponse) response
+                        .getResponse()).
+                        setHeader("Server", SERVER_INFO);
             } catch (Exception e) {
                 log("process.create", e);
                 ok = false;
@@ -917,19 +903,22 @@ final class HttpProcessor
             // Parse the incoming request
             try {
                 if (ok) {
-
+                    //parsing the incoming HTTP request
                     parseConnection(socket);
                     parseRequest(input, output);
-                    if (!request.getRequest().getProtocol()
-                        .startsWith("HTTP/0"))
+
+                    if (!request.getRequest().getProtocol().startsWith("HTTP/0")){
                         parseHeaders(input);
+                    }
+
                     if (http11) {
                         // Sending a request acknowledge back to the client if
                         // requested.
                         ackRequest(output);
                         // If the protocol is HTTP/1.1, chunking is allowed.
-                        if (connector.isChunkingAllowed())
+                        if (connector.isChunkingAllowed()){
                             response.setAllowChunking(true);
+                        }
                     }
 
                 }
@@ -1079,21 +1068,16 @@ final class HttpProcessor
         // Process requests until we receive a shutdown signal
         while (!stopped) {
 
-            // Wait for the next socket to be assigned
-            Socket socket = await();//一运行就卡在这 等Connector里面调用processor.assign(socket);里面的notifyAll
-
             try {
+                // Wait for the next socket to be assigned
+                Socket socket = await();//一运行就卡在这 等Connector里面调用processor.assign(socket);里面的notifyAll
                 process(socket);//panda 解析输入流 填充requst
             } catch (Throwable t) {
                 log("process.invoke", t);
             }
 
-            // Finish up this request
-            //把本实例返回connector里面的池 复用 省得每次new这么浪费
-            connector.recycle(this);
-
         }
-
+        connector.recycle(this);
         // Tell threadStop() we have shut ourselves down successfully
         synchronized (threadSync) {
             threadSync.notifyAll();

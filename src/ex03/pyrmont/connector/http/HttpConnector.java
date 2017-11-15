@@ -30,7 +30,7 @@ public class HttpConnector implements Runnable {
       // Accept the next incoming connection from the server socket
       Socket socket = null;
       try {
-        socket = serverSocket.accept();
+        socket = serverSocket.accept();//等在这
       }
       catch (Exception e) {
         continue;

@@ -122,8 +122,7 @@ public class SocketInputStream extends InputStream {
      * read operations, or if the given buffer is not big enough to accomodate
      * the whole line.
      */
-    public void readRequestLine(HttpRequestLine requestLine)
-        throws IOException {
+    public void readRequestLine(HttpRequestLine requestLine) throws IOException {
 
         // Recycling check
         if (requestLine.methodEnd != 0)
