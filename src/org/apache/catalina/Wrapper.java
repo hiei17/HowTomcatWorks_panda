@@ -216,6 +216,8 @@ public interface Wrapper extends Container {
 
 
     /**
+     * allocates an initialed instance of the servlet the wrapper represents
+     *
      * Allocate an initialized instance of this Servlet that is ready to have
      * its <code>service()</code> method called.  If the servlet class does
      * not implement <code>SingleThreadModel</code>, the (only) initialized

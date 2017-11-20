@@ -20,6 +20,7 @@ public class ClientIPLoggerValve implements Valve, Contained {
 
     // Pass this request on to the next valve in our pipeline
     valveContext.invokeNext(request, response);
+
     System.out.println("Client IP Logger Valve");
     ServletRequest sreq = request.getRequest();
     System.out.println(sreq.getRemoteAddr());

@@ -10,14 +10,17 @@ import org.apache.catalina.Container;
 import org.apache.catalina.Loader;
 import org.apache.catalina.DefaultContext;
 
+//It knows the location of the servlet class
+// and its getClassLoader method returns a java.lang.ClassLoader instance that searches the servlet class location.
 public class SimpleLoader implements Loader {
 
-  public static final String WEB_ROOT =
-    System.getProperty("user.dir") + File.separator  + "webroot";
+  // the directory where the servlet class is to be found.
+  public static final String WEB_ROOT = System.getProperty("user.dir") + File.separator  + "webroot";
 
   ClassLoader classLoader = null;
   Container container = null;
 
+  //new 的时候已经准备好 类加载器 了
   public SimpleLoader() {
     try {
       URL[] urls = new URL[1];
@@ -30,8 +33,6 @@ public class SimpleLoader implements Loader {
     catch (IOException e) {
       System.out.println(e.toString() );
     }
-
-
   }
 
   public ClassLoader getClassLoader() {
@@ -42,6 +43,7 @@ public class SimpleLoader implements Loader {
     return container;
   }
 
+  //container set本实例的时候 container也set到本实例
   public void setContainer(Container container) {
     this.container = container;
   }

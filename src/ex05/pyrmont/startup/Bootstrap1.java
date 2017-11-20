@@ -18,12 +18,14 @@ public final class Bootstrap1 {
 
     HttpConnector connector = new HttpConnector();
     Wrapper wrapper = new SimpleWrapper();
-    wrapper.setServletClass("ModernServlet");
+
     Loader loader = new SimpleLoader();
+
     Valve valve1 = new HeaderLoggerValve();
     Valve valve2 = new ClientIPLoggerValve();
 
     wrapper.setLoader(loader);
+    wrapper.setServletClass("ModernServlet");
     ((Pipeline) wrapper).addValve(valve1);
     ((Pipeline) wrapper).addValve(valve2);
 

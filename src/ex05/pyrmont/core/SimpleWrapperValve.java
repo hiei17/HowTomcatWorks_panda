@@ -14,15 +14,15 @@ import org.apache.catalina.ValveContext;
 import org.apache.catalina.Contained;
 import org.apache.catalina.Container;
 
+//做 basic Valve
 
 public class SimpleWrapperValve implements Valve, Contained {
-
   protected Container container;
 
   public void invoke(Request request, Response response, ValveContext valveContext)
     throws IOException, ServletException {
 
-    SimpleWrapper wrapper = (SimpleWrapper) getContainer();
+
     ServletRequest sreq = request.getRequest();
     ServletResponse sres = response.getResponse();
     Servlet servlet = null;
@@ -35,8 +35,13 @@ public class SimpleWrapperValve implements Valve, Contained {
 
     // Allocate a servlet instance to process this request
     try {
+      //把本valve 给容器的时候 把容器set进来了
+      SimpleWrapper wrapper = (SimpleWrapper) getContainer();
+      //容器里面拿到servlet实例
       servlet = wrapper.allocate();
       if (hres!=null && hreq!=null) {
+
+        //最终
         servlet.service(hreq, hres);
       }
       else {

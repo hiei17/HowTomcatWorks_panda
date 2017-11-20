@@ -23,24 +23,53 @@ import org.apache.catalina.Valve;
 import org.apache.catalina.Wrapper;
 
 
-
+//Wrapper是基本的容器 不再有子容器
 public class SimpleWrapper implements Wrapper, Pipeline {
 
   // the servlet instance
   private Servlet instance = null;
   private String servletClass;
+  //is a Loader that is used to load the servlet class.
   private Loader loader;
   private String name;
-  private SimplePipeline pipeline = new SimplePipeline(this);
+  //The parentvariable represents a parent container for this wrapper.
+  // This means that this wrapper can be a child container of another container, such as a Context.
   protected Container parent = null;
+    private SimplePipeline pipeline = new SimplePipeline(this);
 
   public SimpleWrapper() {
     pipeline.setBasic(new SimpleWrapperValve());
   }
 
-  public synchronized void addValve(Valve valve) {
-    pipeline.addValve(valve);
-  }
+
+    //panda 实际交给内部的pipeline
+    public void invoke(Request request, Response response) throws IOException, ServletException {
+        pipeline.invoke(request, response);
+    }
+    public synchronized void addValve(Valve valve) {
+        pipeline.addValve(valve);
+    }
+    public Valve getBasic() {
+        return pipeline.getBasic();
+    }
+
+    public void setBasic(Valve valve) {
+        pipeline.setBasic(valve);
+    }
+
+    public Valve[] getValves() {
+        return pipeline.getValves();
+    }
+
+    public void removeValve(Valve valve) {
+        pipeline.removeValve(valve);
+    }
+
+    public boolean isUnavailable() {
+        return false;
+    }
+
+
 
   public Servlet allocate() throws ServletException {
     // Load and initialize our instance if necessary
@@ -57,6 +86,15 @@ public class SimpleWrapper implements Wrapper, Pipeline {
     }
     return instance;
   }
+
+  public void setServletClass(String servletClass) {
+        this.servletClass = servletClass;
+    }
+
+    //加载Servlet实例
+    public void load() throws ServletException {
+        instance = loadServlet();
+    }
 
   private Servlet loadServlet() throws ServletException {
     if (instance!=null)
@@ -209,9 +247,7 @@ public class SimpleWrapper implements Wrapper, Pipeline {
     return null;
   }
 
-  public void setServletClass(String servletClass) {
-    this.servletClass = servletClass;
-  }
+
 
   public void addChild(Container child) {
   }
@@ -273,18 +309,9 @@ public class SimpleWrapper implements Wrapper, Pipeline {
     return null;
   }
 
-  public void invoke(Request request, Response response)
-    throws IOException, ServletException {
-    pipeline.invoke(request, response);
-  }
 
-  public boolean isUnavailable() {
-    return false;
-  }
 
-  public void load() throws ServletException {
-    instance = loadServlet();
-  }
+
 
   public Container map(Request request, boolean update) {
     return null;
@@ -317,21 +344,6 @@ public class SimpleWrapper implements Wrapper, Pipeline {
   public void unload() throws ServletException {
   }
 
-  // method implementations of Pipeline
-  public Valve getBasic() {
-    return pipeline.getBasic();
-  }
 
-  public void setBasic(Valve valve) {
-    pipeline.setBasic(valve);
-  }
-
-  public Valve[] getValves() {
-    return pipeline.getValves();
-  }
-
-  public void removeValve(Valve valve) {
-    pipeline.removeValve(valve);
-  }
 
 }
